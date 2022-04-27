@@ -30,6 +30,10 @@ with app.app_context():
 # Routes
 ###
 
+@app.route('/heartbeat', methods=["GET"])
+def heartbeat():
+    return "OK", 200
+
 @app.route('/api/meta/valid_subsystems', methods=["GET"])
 def get_subsystems():
     db_client = get_mongodb()
