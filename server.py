@@ -1,21 +1,18 @@
-from re import L
+import configparser
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
-import pdb
-import json
+import os
 from datetime import datetime
 import sys
 from urllib.parse import urlparse
 from bson.json_util import dumps
 import eventlet
 from eventlet import wsgi
+from zmq_server import get_mongodb
+
 ###
 # Setup
 ###
-
-def get_mongodb():
-    client = MongoClient(port = 27017)
-    return client['logs'] 
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -31,9 +28,11 @@ with app.app_context():
 # Routes
 ###
 
+
 @app.route('/heartbeat', methods=["GET"])
 def heartbeat():
     return "OK", 200
+
 
 @app.route('/api/meta/valid_subsystems', methods=["GET"])
 def get_subsystems():
@@ -41,13 +40,14 @@ def get_subsystems():
     subsystems = list(db_client.subsystems.find())
     if len(subsystems) > 0:
         res = jsonify([
-            {"name" : s['name'],
-            "identifier" : s['identifier']}
+            {"name": s['name'],
+             "identifier": s['identifier']}
             for s in subsystems
         ])
         return res, 200
     else:
         return "No subsystem list found", 200
+
 
 @app.route('/api/meta/valid_levels', methods=["GET"])
 def get_levels():
@@ -55,29 +55,32 @@ def get_levels():
     levels = list(db_client.levels.find())
     if len(levels) > 0:
         res = jsonify([
-            {"level" : l['level']}
+            {"level": l['level']}
             for l in levels
         ])
         return res, 200
     else:
         return "No subsystem list found", 200
 
+
 @app.route('/api/meta/add_subsystem', methods=["PUT"])
 def add_subsystem():
     db_client = get_mongodb()
     db_client.subsystems.insert({
-        "name" : request.form['name'],
-        "identifier" : request.form['iden']
+        "name": request.form['name'],
+        "identifier": request.form['iden']
     })
     return 'Created', 201
+
 
 @app.route('/api/meta/add_level', methods=["PUT"])
 def add_level():
     db_client = get_mongodb()
     db_client.levels.insert({
-        "level" : request.form['level']
+        "level": request.form['level']
     })
     return 'Created', 201
+
 
 @app.route('/api/log/new_log', methods=["PUT"])
 def new_log():
@@ -87,7 +90,7 @@ def new_log():
     content = request.form
     # Check to make sure that a valid subsystem and event type
     cursor = db_client.subsystems.find()
-    subsystems = [s['identifier'] for s in cursor] 
+    subsystems = [s['identifier'] for s in cursor]
     cursor = db_client.levels.find()
     levels = [l['level'] for l in cursor]
 
@@ -95,24 +98,25 @@ def new_log():
         return 'Invalid subsystem name', 400
     if content.get('level', None).lower() not in levels:
         return 'Invalid log level', 400
-    
+
     log = {
-        'utc_sent' : content.get('utc_sent', None),
-        'utc_recieved' : datetime.utcnow(),
-        'hostname' : str(urlparse(request.base_url).hostname),
-        'ip_addr' : str(request.remote_addr),
-        'level' : content.get('level', None),
-        'subsystem' : content.get('subsystem', None),
-        'author' : content.get('author', None),
-        'SEMID' : content.get('semid', None),
-        'PROGID' : content.get('progid', None),
-        'message' : content.get('message', None)
+        'utc_sent': content.get('utc_sent', None),
+        'utc_recieved': datetime.utcnow(),
+        'hostname': str(urlparse(request.base_url).hostname),
+        'ip_addr': str(request.remote_addr),
+        'level': content.get('level', None),
+        'subsystem': content.get('subsystem', None),
+        'author': content.get('author', None),
+        'SEMID': content.get('semid', None),
+        'PROGID': content.get('progid', None),
+        'message': content.get('message', None)
     }
-    
+
     id = db_client.logs.insert_one(log)
     # print(f'Inserted {id} into DB')
 
     return "Log submitted", 201
+
 
 @app.route('/api/log/get_logs', methods=["GET"])
 def get_logs():
@@ -123,6 +127,12 @@ def get_logs():
         return res, 200
     else:
         return "No logs list found", 200
+
+def get_default_config_loc():
+    config_loc = os.path.abspath(os.path.dirname(__file__))
+    config_loc = os.path.join(config_loc, './configs/server_cfg.ini')
+
+    return config_loc
 
 if __name__ == "__main__":
     wsgi.server(eventlet.listen(("127.0.0.1", 5000)), app)
