@@ -10,6 +10,7 @@ from wonderwords import RandomSentence
 from random import randint, random, choice
 import json
 import os
+import pdb
 
 def get_mongodb():
     client = MongoClient(port = 27017)
@@ -68,12 +69,45 @@ class ServerWorker(threading.Thread):
         worker.connect('inproc://backend')
         while True:
             ident, msg = worker.recv_multipart()
-            self._handle_log(ident, msg)
+            dmsg = json.loads(msg)
+            msgType = dmsg.get('msg_type', '')
+            msgBody = dmsg.get('body', None)
+            # route to proper function
+            if msgType == 'log' and msgBody is not None:
+                resp = self._handle_log(ident, msgBody)
+            if msgType == 'request_metadata_options':
+                resp = self._handle_metadata_options()
+            if msgType == 'heartbeat':
+                resp = self._handle_heartbeat_request()
+            # send response
+            worker.send_multipart([ident, json.dumps(resp).encode()])
+        worker.close()
+
+    @staticmethod
+    def _handle_heartbeat_request():
+        return {'msg': "OK", 'resp': 200}
+
+    @staticmethod
+    def _handle_metadata_options():
+        db_client = get_mongodb()
+        subs = list(db_client.subsystems.find())
+        subsystems = [{"name": s['name'], "identifier": s['identifier']} for s in subs]
+        levs = list(db_client.levels.find())
+        levels = [s['level'] for s in levs]
+
+        if len(subsystems) <= 0 and len(levels) <=0:
+            res = { 'resp': 200, 'msg': "No subsystem or levels found"} 
+        if len(subsystems) <= 0:
+            res = { 'resp': 200, 'msg': "No subsystem list found"} 
+        elif len(levels) <= 0:
+            res = { 'resp': 200, 'msg': "No subsystem list found"} 
+        else:
+            res = {'subsystems': subsystems, 'levels': levels, 'resp': 200} 
+        return res
 
     @staticmethod
     def _handle_log(ident, msg):
 
-        content = json.loads(msg)
         db_client = get_mongodb()
         # Check to make sure that a valid subsystem and event type
         cursor = db_client.subsystems.find()
@@ -81,26 +115,32 @@ class ServerWorker(threading.Thread):
         cursor = db_client.levels.find()
         levels = [l['level'] for l in cursor]
 
-        if content.get('subsystem', None) not in subsystems:
-            return 'Invalid subsystem name', 400
-        if content.get('level', None).lower() not in levels:
-            return 'Invalid log level', 400
+        if msg.get('subsystem', None) not in subsystems:
+            return {'msg': 'Invalid subsystem name', 'resp': 400}
+        if msg.get('level', None).lower() not in levels:
+            return {'msg': 'Invalid subsystem name', 'resp': 400}
 
         log = {
-            'utc_sent': content.get('utc_sent', None),
+            'utc_sent': msg.get('utc_sent', None),
             'utc_recieved': datetime.utcnow(),
             'hostname': f'worker-{ident}',
             # 'ip_addr': str(request.remote_addr),
-            'level': content.get('level', None),
-            'subsystem': content.get('subsystem', None),
-            'author': content.get('author', None),
-            'SEMID': content.get('semid', None),
-            'PROGID': content.get('progid', None),
-            'message': content.get('message', None)
+            'level': msg.get('level', None),
+            'subsystem': msg.get('subsystem', None),
+            'author': msg.get('author', None),
+            'SEMID': msg.get('semid', None),
+            'PROGID': msg.get('progid', None),
+            'message': msg.get('message', None)
         }
 
-        tprint('Worker received log from %s' % (ident))
-        id = db_client.logs.insert_one(log)
+        # tprint('Worker received log from %s' % (ident))
+        try: 
+            id = db_client.logs.insert_one(log)
+            resp = {'resp': 200, 'msg': f'log submitted to database. id: {id}'}
+        except Exception as err:
+            resp = {'resp': 200, 'msg': f'log not submitted to database. err: {err}'}
+        return resp
+            
 
 if __name__ == "__main__":
 
