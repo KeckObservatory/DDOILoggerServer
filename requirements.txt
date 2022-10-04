@@ -1,0 +1,13 @@
+click==8.0.1
+ddoiloggerclient==1.0.0
+dnspython==2.2.0
+eventlet==0.32.0
+Flask==2.0.3
+greenlet==1.1.1
+importlib-metadata==5.0.0
+itsdangerous==2.1.2
+Jinja2==3.0.3
+pymongo==4.2.0
+six==1.16.0
+Werkzeug==2.0.3
+zipp==3.7.0
