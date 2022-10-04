@@ -1,0 +1,43 @@
+{
+    "presets" : {
+        "subsystems" : [
+            {
+                "name" : "mosfire",
+                "identifier" : "MOSFIRE"
+            },
+            {
+                "name" : "deimos",
+                "identifier" : "DEIMOS"
+            }
+        ],
+        "levels" : [
+            {
+                "level" : "debug"
+            },
+            {
+                "level" : "info"
+            },
+            {
+                "level" : "warn"
+            },
+            {
+                "level" : "error"
+            }
+        ]
+    },
+    "log" : [
+        {
+            "id" : "event id",
+            "utc_sent" : "time the message was sent",
+            "utc_recieved" : "time the message was recieved",
+            "hostname" : "hostname of the client that sent this log",
+            "ip_addr" : "ip address of what sent this log (hopefully with port)",
+            "level" : "logging level",
+            "subsystem" : "subsystem for this log",
+            "author" : "author of this log",
+            "SEMID" : "SEMID, if there is one (server defaults this to 'NONE'",
+            "PROGID" : "PROGID, if there is one (server defaults this to 'NONE'",
+            "message" : "actual logging message"
+    }
+    ]
+}
