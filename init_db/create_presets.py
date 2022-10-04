@@ -19,6 +19,6 @@ if __name__ == "__main__":
         presets = metadata.get('presets', None)
         for idx, name in enumerate(collNames):
             coll = logDB[name]
-            docs = metadata.get(collNames[idx], {}) 
+            docs = presets.get(collNames[idx], {}) 
             for doc in docs:
                 id = coll.insert_one(doc)
