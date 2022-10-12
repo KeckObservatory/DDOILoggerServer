@@ -21,13 +21,13 @@ if __name__ == '__main__':
         msg = rs.sentence()
         level = choice(["debug", "info", "warn", "error"])
         if level == "debug":
-            logger.debug(msg)
+            resp = logger.debug(msg)
         if level == "info":
-            logger.info(msg)
+            resp = logger.info(msg)
         if level == "warn":
-            logger.warn(msg)
+            resp = logger.warn(msg)
         if level == "error":
-            logger.error(msg)
+            resp = logger.error(msg)
     t2 = time.time()
     print(t2-t1)
 

@@ -65,6 +65,8 @@ class ServerWorker(threading.Thread):
         self.context = context
 
     def run(self):
+        """Main loop that continually monitors for messages.
+        """
         worker = self.context.socket(zmq.DEALER)
         worker.connect('inproc://backend')
         while True:
@@ -85,10 +87,22 @@ class ServerWorker(threading.Thread):
 
     @staticmethod
     def _handle_heartbeat_request():
+        """Used when worker recieves a heartbeat request. 
+        Sends a simple response message to the requester.
+
+        Returns:
+            dict: message to be sent to requester
+        """
         return {'msg': "OK", 'resp': 200}
 
     @staticmethod
     def _handle_metadata_options():
+        """Gets subsystem and level arrays from database,
+        and returns them in a dictionary.
+
+        Returns:
+            dict: message to be sent to requester
+        """
         db_client = get_mongodb()
         subs = list(db_client.subsystems.find())
         subsystems = [{"name": s['name'], "identifier": s['identifier']} for s in subs]
@@ -102,12 +116,20 @@ class ServerWorker(threading.Thread):
         elif len(levels) <= 0:
             res = { 'resp': 200, 'msg': "No subsystem list found"} 
         else:
-            res = {'subsystems': subsystems, 'levels': levels, 'resp': 200} 
+            res = {'msg':{'subsystems': subsystems, 'levels': levels}, 'resp': 200} 
         return res
 
     @staticmethod
     def _handle_log(ident, msg):
+        """Adds msg to database and returns a response to requester
 
+        Args:
+            ident (int): unique identifer of requester 
+            msg (_type_): message that is to be added to the database 
+
+        Returns:
+            dict: message to be sent to requester 
+        """
         db_client = get_mongodb()
         # Check to make sure that a valid subsystem and event type
         cursor = db_client.subsystems.find()
@@ -124,7 +146,6 @@ class ServerWorker(threading.Thread):
             'utc_sent': msg.get('utc_sent', None),
             'utc_recieved': datetime.utcnow(),
             'hostname': f'worker-{ident}',
-            # 'ip_addr': str(request.remote_addr),
             'level': msg.get('level', None),
             'subsystem': msg.get('subsystem', None),
             'author': msg.get('author', None),
@@ -136,7 +157,7 @@ class ServerWorker(threading.Thread):
         # tprint('Worker received log from %s' % (ident))
         try: 
             id = db_client.logs.insert_one(log)
-            resp = {'resp': 200, 'msg': f'log submitted to database. id: {id}'}
+            resp = {'resp': 200, 'msg': f'log submitted to database. id: {id.inserted_id}'}
         except Exception as err:
             resp = {'resp': 200, 'msg': f'log not submitted to database. err: {err}'}
         return resp
