@@ -130,17 +130,6 @@ class ServerWorker(threading.Thread):
         Returns:
             dict: message to be sent to requester 
         """
-        db_client = get_mongodb()
-        # Check to make sure that a valid subsystem and event type
-        cursor = db_client.subsystems.find()
-        subsystems = [s['identifier'] for s in cursor]
-        cursor = db_client.levels.find()
-        levels = [l['level'] for l in cursor]
-
-        if msg.get('subsystem', None) not in subsystems:
-            return {'msg': 'Invalid subsystem name', 'resp': 400}
-        if msg.get('level', None).lower() not in levels:
-            return {'msg': 'Invalid subsystem name', 'resp': 400}
 
         log = {
             'utc_sent': msg.get('utc_sent', None),
@@ -154,12 +143,24 @@ class ServerWorker(threading.Thread):
             'message': msg.get('message', None)
         }
 
+        db_client = get_mongodb()
+        # Check to make sure that a valid subsystem and event type
+        cursor = db_client.subsystems.find()
+        subsystems = [s['identifier'] for s in cursor]
+        cursor = db_client.levels.find()
+        levels = [l['level'] for l in cursor]
+
+        if msg.get('subsystem', None) not in subsystems:
+            return {'msg': 'Invalid subsystem name', 'log': log, 'resp': 400}
+        if msg.get('level', None).lower() not in levels:
+            return {'msg': 'Invalid subsystem name', 'log': log, 'resp': 400}
+
         # tprint('Worker received log from %s' % (ident))
         try: 
             id = db_client.logs.insert_one(log)
             resp = {'resp': 200, 'msg': f'log submitted to database. id: {id.inserted_id}'}
         except Exception as err:
-            resp = {'resp': 200, 'msg': f'log not submitted to database. err: {err}'}
+            resp = {'resp': 400, 'log': log, 'msg': f'log not submitted to database. err: {err}'}
         return resp
             
 
