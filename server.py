@@ -102,7 +102,7 @@ def new_log():
 
     log = {
         'utc_sent': content.get('utc_sent', None),
-        'utc_recieved': datetime.utcnow(),
+        'utc_received': datetime.utcnow(),
         'hostname': str(urlparse(request.base_url).hostname),
         'ip_addr': str(request.remote_addr),
         'level': content.get('level', None),
@@ -118,13 +118,36 @@ def new_log():
 
     return "Log submitted", 201
 
+def process_query(startDate=None, endDate=None, subsystem=None):
+    query = {}
+    fmt = '%Y-%m-%d'
+    if not startDate is None and not endDate is None:
+        sd = datetime.strptime(startDate, fmt)
+        ed = datetime.strptime(endDate, fmt)
+        query['utc_received'] = {'$lt': ed, '$gte': sd}
+    elif startDate:
+        sd = datetime.strptime(startDate, fmt)
+        query['utc_received'] = {'$gte': sd}
+    elif endDate:
+        ed = datetime.strptime(endDate, fmt)
+        query['utc_received'] = {'$lte': ed}
+        
+    if subsystem:
+        query['subsystem'] = subsystem
+    return query
+
+
 @app.route('/api/log/get_logs', methods=["GET"])
 def get_logs():
-    request.args.get('start_date', None)
-    request.args.get('end_date', None)
-    request.args.get('subsystem', None)
+    startDate = request.args.get('start_date', None)
+    endDate = request.args.get('end_date', None)
+    subsystem = request.args.get('subsystem', None)
+
+    query = process_query(startDate, endDate, subsystem)
+
+    
     db_client = get_mongodb()
-    logs = list(db_client.logs.find())
+    logs = list(db_client.logs.find(query))
     if len(logs) > 0:
         res = dumps(logs)
         return res, 200
@@ -134,7 +157,6 @@ def get_logs():
 def get_default_config_loc():
     config_loc = os.path.abspath(os.path.dirname(__file__))
     config_loc = os.path.join(config_loc, './configs/server_cfg.ini')
-
     return config_loc
 
 if __name__ == "__main__":

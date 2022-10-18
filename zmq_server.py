@@ -133,7 +133,7 @@ class ServerWorker(threading.Thread):
 
         log = {
             'utc_sent': msg.get('utc_sent', None),
-            'utc_recieved': datetime.utcnow(),
+            'utc_recved': datetime.utcnow(),
             'hostname': f'worker-{ident}',
             'level': msg.get('level', None),
             'subsystem': msg.get('subsystem', None),
