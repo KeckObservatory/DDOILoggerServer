@@ -18,8 +18,7 @@ if __name__ == '__main__':
     logger = DDOILogger.DDOILogger(subsystem, config, author, progid, semid)
     rs = RandomSentence()
     t1 = time.time()
-    pdb.set_trace()
-    failedLogs = logger.read_failed_logs
+    failedLogs = logger.read_failed_logs()
     for idx in range(nRecords):
         msg = rs.sentence()
         level = choice(["debug", "info", "warn", "error"])

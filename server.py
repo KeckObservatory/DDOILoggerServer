@@ -9,6 +9,7 @@ from bson.json_util import dumps
 import eventlet
 from eventlet import wsgi
 from zmq_server import get_mongodb
+import pdb
 
 ###
 # Setup
@@ -117,9 +118,11 @@ def new_log():
 
     return "Log submitted", 201
 
-
 @app.route('/api/log/get_logs', methods=["GET"])
 def get_logs():
+    request.args.get('start_date', None)
+    request.args.get('end_date', None)
+    request.args.get('subsystem', None)
     db_client = get_mongodb()
     logs = list(db_client.logs.find())
     if len(logs) > 0:
@@ -135,4 +138,10 @@ def get_default_config_loc():
     return config_loc
 
 if __name__ == "__main__":
-    wsgi.server(eventlet.listen(("127.0.0.1", 5000)), app)
+
+    config = get_default_config_loc()
+    config_parser = configparser.ConfigParser()
+    config_parser.read(config)
+    config = config_parser['flaskserver']
+    port = int(config.get('port'))
+    wsgi.server(eventlet.listen(("127.0.0.1", port)), app)
