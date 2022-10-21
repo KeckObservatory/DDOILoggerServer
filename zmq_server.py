@@ -124,8 +124,8 @@ class ServerWorker(threading.Thread):
         """Adds msg to database and returns a response to requester
 
         Args:
-            ident (int): unique identifer of requester 
-            msg (_type_): message that is to be added to the database 
+            ident (str): unique identifer of requester 
+            msg (dict): message that is to be added to the database 
 
         Returns:
             dict: message to be sent to requester 
@@ -133,8 +133,8 @@ class ServerWorker(threading.Thread):
 
         log = {
             'utc_sent': msg.get('utc_sent', None),
-            'utc_recved': datetime.utcnow(),
-            'hostname': f'worker-{ident}',
+            'utc_received': datetime.utcnow(),
+            'hostname': f'{ident}',
             'level': msg.get('level', None),
             'subsystem': msg.get('subsystem', None),
             'author': msg.get('author', None),

@@ -1,6 +1,7 @@
 import configparser
 from flask import Flask, request, jsonify
-from pymongo import MongoClient
+from pymongo import MongoClient  
+import pymongo
 import os
 from datetime import datetime
 import sys
@@ -118,36 +119,44 @@ def new_log():
 
     return "Log submitted", 201
 
-def process_query(startDate=None, endDate=None, subsystem=None):
-    query = {}
-    fmt = '%Y-%m-%d'
+def process_query(startDate=None, endDate=None, subsystem=None, nLogs=None, dateFormat='%Y-%m-%d'):
+    find = {}
+    sort = []
     if not startDate is None and not endDate is None:
-        sd = datetime.strptime(startDate, fmt)
-        ed = datetime.strptime(endDate, fmt)
-        query['utc_received'] = {'$lt': ed, '$gte': sd}
+        sd = datetime.strptime(startDate, dateFormat)
+        ed = datetime.strptime(endDate, dateFormat)
+        find['utc_received'] = {'$lte': ed, '$gte': sd}
     elif startDate:
-        sd = datetime.strptime(startDate, fmt)
-        query['utc_received'] = {'$gte': sd}
+        sd = datetime.strptime(startDate, dateFormat)
+        find['utc_received'] = {'$gte': sd}
     elif endDate:
-        ed = datetime.strptime(endDate, fmt)
-        query['utc_received'] = {'$lte': ed}
-        
+        ed = datetime.strptime(endDate, dateFormat)
+        find['utc_received'] = {'$lte': ed}
     if subsystem:
-        query['subsystem'] = subsystem
-    return query
+        find['subsystem'] = subsystem
+    if nLogs:
+        sort = [('utc_recieved', pymongo.DESCENDING) ]
+    return find, sort
 
 
 @app.route('/api/log/get_logs', methods=["GET"])
 def get_logs():
-    startDate = request.args.get('start_date', None)
-    endDate = request.args.get('end_date', None)
-    subsystem = request.args.get('subsystem', None)
+    startDate = request.args.get('start_date', None, type=str)
+    endDate = request.args.get('end_date', None, type=str)
+    subsystem = request.args.get('subsystem', None, type=str)
+    nLogs = request.args.get('n_logs', None, type=int)
+    dateFormat = request.args.get('date_format', '%Y-%m-%d', type=str)
 
-    query = process_query(startDate, endDate, subsystem)
-
+    find, sort = process_query(startDate, endDate, subsystem, nLogs, dateFormat)
+    print('find', find)
     
     db_client = get_mongodb()
-    logs = list(db_client.logs.find(query))
+    cursor = db_client.logs.find(find) 
+    if len(sort) > 0:
+        cursor = cursor.sort(sort) 
+    if nLogs:
+        cursor = cursor.limit(nLogs)
+    logs = list(cursor)
     if len(logs) > 0:
         res = dumps(logs)
         return res, 200
