@@ -1,6 +1,7 @@
 from datetime import datetime
 import configparser
 from pymongo import MongoClient
+import pymongo
 import zmq
 import sys
 import threading
@@ -11,6 +12,26 @@ from random import randint, random, choice
 import json
 import os
 import pdb
+
+
+def process_query(startDate=None, endDate=None, subsystem=None, nLogs=None, dateFormat='%Y-%m-%d'):
+    find = {}
+    sort = []
+    if not startDate is None and not endDate is None:
+        sd = datetime.strptime(startDate, dateFormat)
+        ed = datetime.strptime(endDate, dateFormat)
+        find['utc_received'] = {'$lte': ed, '$gte': sd}
+    elif startDate:
+        sd = datetime.strptime(startDate, dateFormat)
+        find['utc_received'] = {'$gte': sd}
+    elif endDate:
+        ed = datetime.strptime(endDate, dateFormat)
+        find['utc_received'] = {'$lte': ed}
+    if subsystem:
+        find['subsystem'] = subsystem
+    if nLogs:
+        sort = [('utc_received', pymongo.DESCENDING) ]
+    return find, sort
 
 def get_mongodb():
     client = MongoClient(port = 27017)
@@ -74,13 +95,19 @@ class ServerWorker(threading.Thread):
             dmsg = json.loads(msg)
             msgType = dmsg.get('msg_type', '')
             msgBody = dmsg.get('body', None)
+            print(dmsg)
             # route to proper function
+            if msgType == 'request_logs' and msgBody is not None:
+                resp = self._handle_request(msgBody)
             if msgType == 'log' and msgBody is not None:
                 resp = self._handle_log(ident, msgBody)
             if msgType == 'request_metadata_options':
                 resp = self._handle_metadata_options()
             if msgType == 'heartbeat':
                 resp = self._handle_heartbeat_request()
+            
+            if not resp:
+                resp = { 'resp': 400, 'msg': f"not able to process request {msgType}"} 
             # send response
             worker.send_multipart([ident, json.dumps(resp).encode()])
         worker.close()
@@ -118,6 +145,48 @@ class ServerWorker(threading.Thread):
         else:
             res = {'msg':{'subsystems': subsystems, 'levels': levels}, 'resp': 200} 
         return res
+
+    @staticmethod
+    def _handle_request(msg):
+        """gets logs from database and returns a response to requester
+
+        Args:
+            ident (str): unique identifer of requester 
+            msg (dict): message database query parameters 
+
+        Returns:
+            dict: message to be sent to requester 
+        """
+
+        startDate = msg.get('startDate', None)
+        endDate = msg.get('endDate', None)
+        nLogs = msg.get('nLogs', None)
+        subsystem = msg.get('subsystem', None)
+        dateFormat = msg.get('dateFormat', None)
+
+        find, sort = process_query(startDate, endDate, subsystem, nLogs, dateFormat)
+
+        try:
+            db_client = get_mongodb()
+            cursor = db_client.logs.find(find) 
+            if len(sort) > 0:
+                cursor = cursor.sort(sort) 
+            if nLogs:
+                cursor = cursor.limit(nLogs)
+            logs = list(cursor)
+            if len(logs) > 0:
+                for log in logs:
+                    log.pop('_id')
+                    dt = log['utc_received']
+                    log['utc_received'] = dt.strftime(dateFormat)
+                res = {"msg": logs, "resp": 200} 
+                return res 
+            else:
+                res = {"msg": "No logs list found", "resp": 200}
+                return res
+        except Exception as err:
+            res = {"msg": f"error: {err}", "resp": 400}
+            return res
 
     @staticmethod
     def _handle_log(ident, msg):
