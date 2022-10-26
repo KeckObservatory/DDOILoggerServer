@@ -6,7 +6,6 @@ import zmq
 import sys
 import threading
 import time
-from ddoiloggerclient import DDOILogger
 from wonderwords import RandomSentence
 from random import randint, random, choice
 import json
