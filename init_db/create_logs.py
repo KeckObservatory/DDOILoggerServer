@@ -1,7 +1,7 @@
 from pprint import pprint
+from pymongo import MongoClient
 from datetime import datetime
 import sys
-from ddoiloggerclient import DDOILogger 
 from wonderwords import RandomSentence 
 from random import choice 
 import pdb
@@ -15,23 +15,30 @@ if __name__ == '__main__':
     semid="1234"
     nRecords = 1000
     sendAck=True
-    logger = DDOILogger.DDOILogger(subsystem, config, author, progid, semid)
     rs = RandomSentence()
     t1 = time.time()
-    failedLogs = logger.read_failed_logs()
+
+    dbClient = MongoClient()
+    logDB = dbClient["logs"]
+    coll = logDB["logs"]
+
     for idx in range(nRecords):
         msg = rs.sentence()
+        ident = 'create_logs.py'
+
         level = choice(["debug", "info", "warn", "error"])
-        if level == "debug":
-            resp = logger.debug(msg, sendAck=sendAck)
-        if level == "info":
-            resp = logger.info(msg, sendAck=sendAck)
-        if level == "warn":
-            resp = logger.warn(msg, sendAck=sendAck)
-        if level == "error":
-            resp = logger.error(msg, sendAck=sendAck)
-        if sendAck:
-            logger.handle_response(resp, msg)
+        log = {
+            'utc_sent': datetime.utcnow(),
+            'utc_received': datetime.utcnow(),
+            'hostname': f'{ident}',
+            'level': level,
+            'subsystem': subsystem,
+            'author': author,
+            'SEMID': semid,
+            'PROGID': progid,
+            'message': msg
+        }
+        coll.insert_one(log)
     t2 = time.time()
     print(t2-t1)
 

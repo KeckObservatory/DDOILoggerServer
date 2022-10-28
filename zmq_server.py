@@ -83,14 +83,18 @@ class ServerWorker(threading.Thread):
     def __init__(self, context):
         threading.Thread.__init__(self)
         self.context = context
+    
+    def process_request(self, ident, msg):
+        """processes request and returns a dictionary
 
-    def run(self):
-        """Main loop that continually monitors for messages.
+        Args:
+            ident (str): unique identity of requester
+            msg (bstr): message recieved by requester
+
+        Returns:
+            dict: comprises of {'msg': string | dict, 'resp': 200 | 400 } 
         """
-        worker = self.context.socket(zmq.DEALER)
-        worker.connect('inproc://backend')
-        while True:
-            ident, msg = worker.recv_multipart()
+        try:
             dmsg = json.loads(msg)
             msgType = dmsg.get('msg_type', '')
             msgBody = dmsg.get('body', None)
@@ -104,9 +108,25 @@ class ServerWorker(threading.Thread):
                 resp = self._handle_metadata_options()
             if msgType == 'heartbeat':
                 resp = self._handle_heartbeat_request()
+            if msgType == 'add_subsystem':
+                resp = self._handle_add_subsystem_request()
+            if msgType == 'add_level':
+                resp = self._handle_add_level_request()
             
             if not resp:
                 resp = { 'resp': 400, 'msg': f"not able to process request {msgType}"} 
+        except Exception as err:
+            resp = { 'resp': 400, 'msg': f"server encountered error: {err}"} 
+        return resp
+
+    def run(self):
+        """Main loop that continually monitors for messages.
+        """
+        worker = self.context.socket(zmq.DEALER)
+        worker.connect('inproc://backend')
+        while True:
+            ident, msg = worker.recv_multipart()
+            resp = self.process_request(msg)
             # send response
             worker.send_multipart([ident, json.dumps(resp).encode()])
         worker.close()
@@ -120,6 +140,48 @@ class ServerWorker(threading.Thread):
             dict: message to be sent to requester
         """
         return {'msg': "OK", 'resp': 200}
+
+    @staticmethod
+    def _handle_add_subsystem_request(msg):
+        """Adds subsystem to database and returns a response to requester
+
+        Args:
+            msg['name'] (str): name of subsystem 
+            msg['iden'] (str): subsystem identifier 
+
+        Returns:
+            dict: message to be sent to requester 
+        """
+        db_client = get_mongodb()
+        name = msg.get('name')
+        ident = msg.get('iden')
+        db_client.subsystems.insert({
+            "name": name,
+            "identifier": ident
+        })
+        resp = {'msg': f'Created subsystem name {name} with ident {ident}', 'resp': 200 }
+        return resp 
+
+
+    @staticmethod
+    def _handle_add_level_request(msg):
+        """Adds level to database and returns a response to requester
+
+        Args:
+            msg['level'] (str): name of logging level 
+
+        Returns:
+            dict: message to be sent to requester 
+        """
+        level = msg.get('level')
+        db_client = get_mongodb()
+        db_client.levels.insert({
+            "level": level
+        })
+
+        resp = {'msg': f'Created level {level}', 'resp': 200}
+        return resp 
+
 
     @staticmethod
     def _handle_metadata_options():
