@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
         level = choice(["debug", "info", "warn", "error"])
         log = {
-            'utc_sent': datetime.utcnow(),
+            'utc_sent': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%Z'),
             'utc_received': datetime.utcnow(),
             'hostname': f'{ident}',
             'level': level,

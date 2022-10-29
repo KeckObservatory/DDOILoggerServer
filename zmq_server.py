@@ -109,9 +109,9 @@ class ServerWorker(threading.Thread):
             if msgType == 'heartbeat':
                 resp = self._handle_heartbeat_request()
             if msgType == 'add_subsystem':
-                resp = self._handle_add_subsystem_request()
+                resp = self._handle_add_subsystem_request(msgBody)
             if msgType == 'add_level':
-                resp = self._handle_add_level_request()
+                resp = self._handle_add_level_request(msgBody)
             
             if not resp:
                 resp = { 'resp': 400, 'msg': f"not able to process request {msgType}"} 
@@ -126,7 +126,7 @@ class ServerWorker(threading.Thread):
         worker.connect('inproc://backend')
         while True:
             ident, msg = worker.recv_multipart()
-            resp = self.process_request(msg)
+            resp = self.process_request(ident, msg)
             # send response
             worker.send_multipart([ident, json.dumps(resp).encode()])
         worker.close()
@@ -155,7 +155,7 @@ class ServerWorker(threading.Thread):
         db_client = get_mongodb()
         name = msg.get('name')
         ident = msg.get('iden')
-        db_client.subsystems.insert({
+        db_client.subsystems.insert_one({
             "name": name,
             "identifier": ident
         })
@@ -175,7 +175,7 @@ class ServerWorker(threading.Thread):
         """
         level = msg.get('level')
         db_client = get_mongodb()
-        db_client.levels.insert({
+        id = db_client.levels.insert_one({
             "level": level
         })
 
@@ -223,7 +223,7 @@ class ServerWorker(threading.Thread):
         endDate = msg.get('endDate', None)
         nLogs = msg.get('nLogs', None)
         subsystem = msg.get('subsystem', None)
-        dateFormat = msg.get('dateFormat', None)
+        dateFormat = msg.get('dateFormat', '%Y-%m-%d')
 
         find, sort = process_query(startDate, endDate, subsystem, nLogs, dateFormat)
 
@@ -240,6 +240,7 @@ class ServerWorker(threading.Thread):
                     log.pop('_id')
                     dt = log['utc_received']
                     log['utc_received'] = dt.strftime(dateFormat)
+                    log['utc_sent'] = dt.strftime(dateFormat)
                 res = {"msg": logs, "resp": 200} 
                 return res 
             else:
