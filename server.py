@@ -174,5 +174,6 @@ if __name__ == "__main__":
     config_parser = configparser.ConfigParser()
     config_parser.read(config)
     config = config_parser['flaskserver']
+    url = config.get('url')
     port = int(config.get('port'))
-    wsgi.server(eventlet.listen(("127.0.0.1", port)), app)
+    wsgi.server(eventlet.listen((url, port)), app)
