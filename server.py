@@ -68,7 +68,7 @@ def get_levels():
 @app.route('/api/meta/add_subsystem', methods=["PUT"])
 def add_subsystem():
     db_client = get_mongodb()
-    db_client.subsystems.insert({
+    db_client.subsystems.insert_one({
         "name": request.form['name'],
         "identifier": request.form['iden']
     })
@@ -78,7 +78,7 @@ def add_subsystem():
 @app.route('/api/meta/add_level', methods=["PUT"])
 def add_level():
     db_client = get_mongodb()
-    db_client.levels.insert({
+    db_client.levels.insert_one({
         "level": request.form['level']
     })
     return 'Created', 201
