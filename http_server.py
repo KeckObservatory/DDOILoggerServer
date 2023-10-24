@@ -2,7 +2,6 @@ import configparser
 import argparse
 from flask import Flask, request 
 from datetime import datetime
-import sys
 from urllib.parse import urlparse
 from bson.json_util import dumps
 import eventlet
@@ -67,7 +66,7 @@ if __name__ == "__main__":
     flaskconfig = config_parser['flaskserver']
     dbconfig = config_parser['database']
     url = flaskconfig.get('url')
-    port = flaskconfig.get('port', None, type=int)
+    port = int(flaskconfig.get('port', None))
     log_schema = dbconfig.get('log_schema')
     log_coll_name = dbconfig.get('log_coll_name')
     db_name = dbconfig.get('db_name')
