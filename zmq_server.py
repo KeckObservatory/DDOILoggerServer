@@ -1,19 +1,15 @@
 from datetime import datetime
 import configparser
-from pymongo import MongoClient
-import pymongo
+import argparse
+from pymongo import MongoClient, DESCENDING
 import zmq
 import sys
 import threading
-import time
-from wonderwords import RandomSentence
-from random import randint, random, choice
 import json
 import os
-import pdb
 
 
-def process_query(startDate=None, endDate=None, subsystem=None, nLogs=None, dateFormat='%Y-%m-%d'):
+def process_query(startDate=None, endDate=None, nLogs=None, dateFormat='%Y-%m-%d', **query_params):
     find = {}
     sort = []
     if not startDate is None and not endDate is None:
@@ -26,26 +22,31 @@ def process_query(startDate=None, endDate=None, subsystem=None, nLogs=None, date
     elif endDate:
         ed = datetime.strptime(endDate, dateFormat)
         find['utc_received'] = {'$lte': ed}
-    if subsystem:
-        find['subsystem'] = subsystem
+    for key, val in query_params:
+        if val:
+            find[key] = val
     if nLogs:
-        sort = [('utc_received', pymongo.DESCENDING) ]
+        sort = [('utc_recieved', DESCENDING)]
     return find, sort
 
+
 def get_mongodb():
-    client = MongoClient(port = 27017)
-    return client['logs'] 
+    client = MongoClient(port=27017)
+    return client[db_name]
+
 
 def tprint(msg):
     """like print, but won't get newlines confused with multiple threads"""
     sys.stdout.write(msg + '\n')
     sys.stdout.flush()
 
+
 def get_default_config_loc():
     config_loc = os.path.abspath(os.path.dirname(__file__))
     config_loc = os.path.join(config_loc, './configs/server_cfg.ini')
 
     return config_loc
+
 
 class ServerTask(threading.Thread):
     """ServerTask"""
@@ -65,7 +66,7 @@ class ServerTask(threading.Thread):
         backend.bind('inproc://backend')
 
         workers = []
-        for idx in range(self.nworkers):
+        for _ in range(self.nworkers):
             worker = ServerWorker(context)
             worker.start()
             workers.append(worker)
@@ -83,7 +84,7 @@ class ServerWorker(threading.Thread):
     def __init__(self, context):
         threading.Thread.__init__(self)
         self.context = context
-    
+
     def process_request(self, ident, msg):
         """processes request and returns a dictionary
 
@@ -98,7 +99,6 @@ class ServerWorker(threading.Thread):
             dmsg = json.loads(msg)
             msgType = dmsg.get('msg_type', '')
             msgBody = dmsg.get('body', None)
-            print(dmsg)
             # route to proper function
             if msgType == 'request_logs' and msgBody is not None:
                 resp = self._handle_request(msgBody)
@@ -108,15 +108,12 @@ class ServerWorker(threading.Thread):
                 resp = self._handle_metadata_options()
             if msgType == 'heartbeat':
                 resp = self._handle_heartbeat_request()
-            if msgType == 'add_subsystem':
-                resp = self._handle_add_subsystem_request(msgBody)
-            if msgType == 'add_level':
-                resp = self._handle_add_level_request(msgBody)
-            
+
             if not resp:
-                resp = { 'resp': 400, 'msg': f"not able to process request {msgType}"} 
+                resp = {'resp': 400,
+                        'msg': f"not able to process request {msgType}"}
         except Exception as err:
-            resp = { 'resp': 400, 'msg': f"server encountered error: {err}"} 
+            resp = {'resp': 400, 'msg': f"server encountered error: {err}"}
         return resp
 
     def run(self):
@@ -142,72 +139,6 @@ class ServerWorker(threading.Thread):
         return {'msg': "OK", 'resp': 200}
 
     @staticmethod
-    def _handle_add_subsystem_request(msg):
-        """Adds subsystem to database and returns a response to requester
-
-        Args:
-            msg['name'] (str): name of subsystem 
-            msg['iden'] (str): subsystem identifier 
-
-        Returns:
-            dict: message to be sent to requester 
-        """
-        db_client = get_mongodb()
-        name = msg.get('name')
-        ident = msg.get('iden')
-        db_client.subsystems.insert_one({
-            "name": name,
-            "identifier": ident
-        })
-        resp = {'msg': f'Created subsystem name {name} with ident {ident}', 'resp': 200 }
-        return resp 
-
-
-    @staticmethod
-    def _handle_add_level_request(msg):
-        """Adds level to database and returns a response to requester
-
-        Args:
-            msg['level'] (str): name of logging level 
-
-        Returns:
-            dict: message to be sent to requester 
-        """
-        level = msg.get('level')
-        db_client = get_mongodb()
-        id = db_client.levels.insert_one({
-            "level": level
-        })
-
-        resp = {'msg': f'Created level {level}', 'resp': 200}
-        return resp 
-
-
-    @staticmethod
-    def _handle_metadata_options():
-        """Gets subsystem and level arrays from database,
-        and returns them in a dictionary.
-
-        Returns:
-            dict: message to be sent to requester
-        """
-        db_client = get_mongodb()
-        subs = list(db_client.subsystems.find())
-        subsystems = [{"name": s['name'], "identifier": s['identifier']} for s in subs]
-        levs = list(db_client.levels.find())
-        levels = [s['level'] for s in levs]
-
-        if len(subsystems) <= 0 and len(levels) <=0:
-            res = { 'resp': 200, 'msg': "No subsystem or levels found"} 
-        if len(subsystems) <= 0:
-            res = { 'resp': 200, 'msg': "No subsystem list found"} 
-        elif len(levels) <= 0:
-            res = { 'resp': 200, 'msg': "No subsystem list found"} 
-        else:
-            res = {'msg':{'subsystems': subsystems, 'levels': levels}, 'resp': 200} 
-        return res
-
-    @staticmethod
     def _handle_request(msg):
         """gets logs from database and returns a response to requester
 
@@ -219,19 +150,25 @@ class ServerWorker(threading.Thread):
             dict: message to be sent to requester 
         """
 
-        startDate = msg.get('startDate', None)
-        endDate = msg.get('endDate', None)
-        nLogs = msg.get('nLogs', None)
-        subsystem = msg.get('subsystem', None)
+        nLogs = msg.get('nLogs')
         dateFormat = msg.get('dateFormat', '%Y-%m-%d')
 
-        find, sort = process_query(startDate, endDate, subsystem, nLogs, dateFormat)
+        args = {
+            'startDate': msg.get('startDate', None),
+            'endDate': msg.get('endDate', None),
+            'nLogs': nLogs,
+            'dateFormat': dateFormat
+        }
+        args = {**args, **{key: msg.get(key, None, type=str)
+                           for key in log_schema}}
+
+        find, sort = process_query(args)
 
         try:
             db_client = get_mongodb()
-            cursor = db_client.logs.find(find) 
+            cursor = db_client[log_coll_name].find(find)
             if len(sort) > 0:
-                cursor = cursor.sort(sort) 
+                cursor = cursor.sort(sort)
             if nLogs:
                 cursor = cursor.limit(nLogs)
             logs = list(cursor)
@@ -241,8 +178,8 @@ class ServerWorker(threading.Thread):
                     dt = log['utc_received']
                     log['utc_received'] = dt.strftime(dateFormat)
                     log['utc_sent'] = dt.strftime(dateFormat)
-                res = {"msg": logs, "resp": 200} 
-                return res 
+                res = {"msg": logs, "resp": 200}
+                return res
             else:
                 res = {"msg": "No logs list found", "resp": 200}
                 return res
@@ -266,44 +203,40 @@ class ServerWorker(threading.Thread):
             'utc_sent': msg.get('utc_sent', None),
             'utc_received': datetime.utcnow(),
             'hostname': f'{ident}',
-            'level': msg.get('level', None),
-            'subsystem': msg.get('subsystem', None),
-            'author': msg.get('author', None),
-            'SEMID': msg.get('semid', None),
-            'PROGID': msg.get('progid', None),
             'message': msg.get('message', None)
         }
 
+        log = {**log, **{key: msg.get(key, None) for key in log_schema}}
         db_client = get_mongodb()
-        # Check to make sure that a valid subsystem and event type
-        cursor = db_client.subsystems.find()
-        subsystems = [s['identifier'] for s in cursor]
-        cursor = db_client.levels.find()
-        levels = [l['level'] for l in cursor]
 
-        if msg.get('subsystem', None) not in subsystems:
-            return {'msg': 'Invalid subsystem name', 'log': log, 'resp': 400}
-        if msg.get('level', None).lower() not in levels:
-            return {'msg': 'Invalid subsystem name', 'log': log, 'resp': 400}
-
-        # tprint('Worker received log from %s' % (ident))
-        try: 
-            id = db_client.logs.insert_one(log)
-            resp = {'resp': 200, 'msg': f'log submitted to database. id: {id.inserted_id}'}
+        try:
+            id = db_client[log_coll_name].insert_one(log)
+            resp = {'resp': 200,
+                    'msg': f'log submitted to database. id: {id.inserted_id}'}
         except Exception as err:
-            resp = {'resp': 400, 'log': log, 'msg': f'log not submitted to database. err: {err}'}
+            resp = {'resp': 400, 'log': log,
+                    'msg': f'log not submitted to database. err: {err}'}
         return resp
-            
+
 
 if __name__ == "__main__":
 
-    config = get_default_config_loc()
-    config_parser = configparser.ConfigParser()
-    config_parser.read(config)
+    parser = argparse.ArgumentParser(description="Create zmq server")
+    parser.add_argument('--configPath', type=str, required=False, default=get_default_config_loc(),
+                        help="subsystem specific logs")
+    args = parser.parse_args()
 
-    config = config_parser['zeromqserver']
-    port = config.get('port', '5570')
-    nworkers = int(config.get('nworkers', 1))
+    config_parser = configparser.ConfigParser()
+    config_parser.read(args.configPath)
+    zmqconfig = config_parser['zmqserver']
+    dbconfig = config_parser['database']
+    url = zmqconfig.get('url')
+    port = int(zmqconfig.get('port'))
+    log_schema = dbconfig.get('log_schema')
+    log_coll_name = dbconfig.get('log_coll_name')
+    db_name = dbconfig.get('db_name')
+    nworkers = int(zmqconfig.get('nworkers', 1))
+
     server = ServerTask(port, nworkers)
     server.start()
     server.join()
