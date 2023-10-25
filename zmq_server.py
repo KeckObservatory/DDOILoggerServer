@@ -234,14 +234,14 @@ if __name__ == "__main__":
 
     config_parser = configparser.ConfigParser()
     config_parser.read(args.configPath)
-    zmqconfig = config_parser['zmqserver']
-    dbconfig = config_parser['database']
-    url = zmqconfig.get('url')
-    port = int(zmqconfig.get('port'))
-    log_schema = dbconfig.get('log_schema').replace(' ', '').split(',')
-    log_coll_name = dbconfig.get('log_coll_name')
-    db_name = dbconfig.get('db_name')
-    nworkers = int(zmqconfig.get('nworkers', 1))
+    zmqconfig = config_parser['ZMQ_SERVER']
+    dbconfig = config_parser['DATA_BASE']
+    url = zmqconfig.get('URL')
+    port = int(zmqconfig.get('PORT'))
+    log_schema = dbconfig.get('LOG_SCHEMA').replace(' ', '').split(',')
+    log_coll_name = dbconfig.get('LOG_COLL_NAME')
+    db_name = dbconfig.get('DB_NAME')
+    nworkers = int(zmqconfig.get('N_WORKERS', 1))
 
     server = ServerTask(port, nworkers)
     server.start()

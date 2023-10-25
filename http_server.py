@@ -66,11 +66,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config_parser = configparser.ConfigParser()
     config_parser.read(args.configPath)
-    flaskconfig = config_parser['flaskserver']
-    dbconfig = config_parser['database']
-    url = flaskconfig.get('url')
-    port = int(flaskconfig.get('port', None))
-    log_schema = dbconfig.get('log_schema').replace(' ', '').split(',')
-    log_coll_name = dbconfig.get('log_coll_name')
-    db_name = dbconfig.get('db_name')
+    flaskconfig = config_parser['FLASK_SERVER']
+    dbconfig = config_parser['DATA_BASE']
+    url = flaskconfig.get('URL')
+    port = int(flaskconfig.get('PORT', None))
+    log_schema = dbconfig.get('LOG_SCHEMA').replace(' ', '').split(',')
+    log_coll_name = dbconfig.get('LOG_COLL_NAME')
+    db_name = dbconfig.get('DB_NAME')
     wsgi.server(eventlet.listen((url, port)), app)
