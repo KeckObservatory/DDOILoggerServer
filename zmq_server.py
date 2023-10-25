@@ -7,6 +7,7 @@ import sys
 import threading
 import json
 import os
+import pdb
 
 
 def process_query(startDate=None, endDate=None, nLogs=None, dateFormat='%Y-%m-%d', **query_params):
@@ -22,15 +23,15 @@ def process_query(startDate=None, endDate=None, nLogs=None, dateFormat='%Y-%m-%d
     elif endDate:
         ed = datetime.strptime(endDate, dateFormat)
         find['utc_received'] = {'$lte': ed}
-    for key, val in query_params:
+    for key, val in query_params.items():
         if val:
             find[key] = val
     if nLogs:
-        sort = [('utc_recieved', DESCENDING)]
+        sort = [('utc_received', DESCENDING)]
     return find, sort
 
 
-def get_mongodb():
+def get_mongodb(db_name):
     client = MongoClient(port=27017)
     return client[db_name]
 
@@ -84,6 +85,7 @@ class ServerWorker(threading.Thread):
     def __init__(self, context):
         threading.Thread.__init__(self)
         self.context = context
+
 
     def process_request(self, ident, msg):
         """processes request and returns a dictionary
@@ -151,27 +153,29 @@ class ServerWorker(threading.Thread):
         """
 
         nLogs = msg.get('nLogs')
-        dateFormat = msg.get('dateFormat', '%Y-%m-%d')
+        DATE_FORMAT = '%Y-%m-%d %H:%M:%S.%Z'
+        dateFormat = msg.get('dateFormat', DATE_FORMAT)
 
-        args = {
+        pqargs = {
             'startDate': msg.get('startDate', None),
             'endDate': msg.get('endDate', None),
             'nLogs': nLogs,
             'dateFormat': dateFormat
         }
-        args = {**args, **{key: msg.get(key, None, type=str)
-                           for key in log_schema}}
 
-        find, sort = process_query(args)
+        for key in log_schema:
+            pqargs[key] = msg.get(key, None)
+            
 
+        find, sort = process_query(**pqargs)
         try:
-            db_client = get_mongodb()
+            db_client = get_mongodb(db_name)
             cursor = db_client[log_coll_name].find(find)
             if len(sort) > 0:
                 cursor = cursor.sort(sort)
             if nLogs:
                 cursor = cursor.limit(nLogs)
-            logs = list(cursor)
+            logs = [x for x in cursor]
             if len(logs) > 0:
                 for log in logs:
                     log.pop('_id')
@@ -206,8 +210,10 @@ class ServerWorker(threading.Thread):
             'message': msg.get('message', None)
         }
 
-        log = {**log, **{key: msg.get(key, None) for key in log_schema}}
-        db_client = get_mongodb()
+        for key in log_schema:
+            log[key] = msg.get(key, None)
+            
+        db_client = get_mongodb(db_name)
 
         try:
             id = db_client[log_coll_name].insert_one(log)
@@ -232,7 +238,7 @@ if __name__ == "__main__":
     dbconfig = config_parser['database']
     url = zmqconfig.get('url')
     port = int(zmqconfig.get('port'))
-    log_schema = dbconfig.get('log_schema')
+    log_schema = dbconfig.get('log_schema').replace(' ', '').split(',')
     log_coll_name = dbconfig.get('log_coll_name')
     db_name = dbconfig.get('db_name')
     nworkers = int(zmqconfig.get('nworkers', 1))
