@@ -1,5 +1,5 @@
 from datetime import datetime
-import configparser
+import yaml 
 import argparse
 from pymongo import MongoClient, DESCENDING
 import zmq
@@ -9,6 +9,19 @@ import json
 import os
 import pdb
 
+def validate_log(log, valid_schema):
+    for schema in valid_schema :
+        if isinstance(schema, str):
+            continue
+        key, valid_values = schema[0], schema[1]['valid_values']
+        log.get(key, None)
+        if not key:
+            continue
+        if log[key] not in valid_values:
+            log[key] = None
+            resp = {'resp': 405, 'log': log,
+                    'msg': f'log key:value {key}:{log[key]} not valid. Log. not submitted to database.'}
+            return resp
 
 def process_query(startDate=None, endDate=None, nLogs=None, dateFormat='%Y-%m-%d', **query_params):
     find = {}
@@ -44,8 +57,7 @@ def tprint(msg):
 
 def get_default_config_loc():
     config_loc = os.path.abspath(os.path.dirname(__file__))
-    config_loc = os.path.join(config_loc, './configs/server_cfg.ini')
-
+    config_loc = os.path.join(config_loc, './configs/server_cfg.yaml')
     return config_loc
 
 
@@ -163,8 +175,14 @@ class ServerWorker(threading.Thread):
             'dateFormat': dateFormat
         }
 
+        database = msg.get('database', 'DDOI').upper()
+        dbconfig = config[f'{database}_DATA_BASE']
+        log_schema = dbconfig.get('LOG_SCHEMA').replace(' ', '').split(',')
+        log_coll_name = dbconfig.get('LOG_COLL_NAME')
+        db_name = dbconfig.get('DB_NAME')
         for key in log_schema:
             pqargs[key] = msg.get(key, None)
+
             
 
         find, sort = process_query(**pqargs)
@@ -209,9 +227,21 @@ class ServerWorker(threading.Thread):
             'hostname': f'{ident}',
             'message': msg.get('message', None)
         }
+        database = msg.get('database', 'DDOI').upper()
+        dbconfig = config[f'{database}_DATA_BASE']
+        log_schema = dbconfig.get('LOG_SCHEMA')
+        log_coll_name = dbconfig.get('LOG_COLL_NAME')
+        db_name = dbconfig.get('DB_NAME')
 
         for key in log_schema:
             log[key] = msg.get(key, None)
+
+        # sanitize log
+        base_log_schema = dbconfig.get('BASE_LOG_SCHEMA')
+        valid_schema = [ *base_log_schema, *log_schema ]
+        resp = validate_log(log, valid_schema)
+        if resp:
+            return resp
             
         db_client = get_mongodb(db_name)
 
@@ -232,15 +262,12 @@ if __name__ == "__main__":
                         help="subsystem specific logs")
     args = parser.parse_args()
 
-    config_parser = configparser.ConfigParser()
-    config_parser.read(args.configPath)
-    zmqconfig = config_parser['ZMQ_SERVER']
-    dbconfig = config_parser['DATA_BASE']
+    with open(args.configPath) as f:
+        config = yaml.safe_load(f)
+    zmqconfig = config['ZMQ_SERVER']
     url = zmqconfig.get('URL')
     port = int(zmqconfig.get('PORT'))
-    log_schema = dbconfig.get('LOG_SCHEMA').replace(' ', '').split(',')
-    log_coll_name = dbconfig.get('LOG_COLL_NAME')
-    db_name = dbconfig.get('DB_NAME')
+
     nworkers = int(zmqconfig.get('N_WORKERS', 1))
 
     server = ServerTask(port, nworkers)

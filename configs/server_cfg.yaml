@@ -1,0 +1,55 @@
+FLASK_SERVER:
+  url: localhost
+  port: 5000
+  debug: 1
+ZMQ_SERVER:
+  url: localhost
+  port: 5570
+  n_workers: 8  
+DDOI_DATA_BASE:
+  LOG_COLL_NAME: ddoi
+  DB_NAME: logs 
+  BASE_LOG_SCHEMA: 
+    - message 
+    - 
+      - level
+      - valid_values:
+        - INFO
+        - WARNING
+        - ERROR
+        - CRITICAL 
+    - utc_sent 
+    - utc_recieved
+    - hostname 
+  LOG_SCHEMA: 
+    - 
+      - subsystem
+      - valid_values:
+        - EXECUTION_ENGINE
+        - NIRES
+        - PTOLEMY
+        - KPF
+        - KCWI
+    - author 
+    - semid 
+    - progid 
+KOA_DATA_BASE:
+  LOG_COLL_NAME: koa 
+  DB_NAME: logs 
+  BASE_LOG_SCHEMA: 
+    - message 
+    - 
+      - level
+      - valid_values:
+        - INFO
+        - WARNING
+        - ERROR
+        - CRITICAL 
+    - utc_sent 
+    - utc_recieved 
+    - hostname 
+  LOG_SCHEMA: 
+    - subsystem 
+    - author 
+    - semid 
+    - progid 
