@@ -25,6 +25,7 @@ def new_log():
         'utc_sent': content.get('utc_sent', None),
         'utc_received': datetime.utcnow(),
         'hostname': str(urlparse(request.base_url).hostname),
+        'level': content.get('level', None),
         'message': content.get('message', None),
     }
     dbconfig = config[f'{database}_DATA_BASE']

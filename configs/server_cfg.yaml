@@ -14,10 +14,11 @@ DDOI_DATA_BASE:
     - 
       - level
       - valid_values:
-        - INFO
-        - WARNING
-        - ERROR
-        - CRITICAL 
+        - debug 
+        - info
+        - warning 
+        - error 
+        - critical 
     - utc_sent 
     - utc_recieved
     - hostname 
@@ -30,6 +31,14 @@ DDOI_DATA_BASE:
         - PTOLEMY
         - KPF
         - KCWI
+        - DEIMOS
+        - LRIS
+        - MOSFIRE
+        - NIRC2
+        - OSIRIS
+        - NIRSPEC
+        - HIRES
+        - ESI
     - author 
     - semid 
     - progid 
@@ -41,10 +50,11 @@ KOA_DATA_BASE:
     - 
       - level
       - valid_values:
-        - INFO
-        - WARNING
-        - ERROR
-        - CRITICAL 
+        - debug 
+        - info
+        - warning 
+        - error 
+        - critical 
     - utc_sent 
     - utc_recieved 
     - hostname 

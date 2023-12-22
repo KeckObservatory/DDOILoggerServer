@@ -16,6 +16,7 @@ def get_schema_keys(log_schema):
             keys.append(schema[0])
         else:
             keys.append(schema)
+    return keys
 
 def validate_log(log, valid_schema):
     for schema in valid_schema :
@@ -27,7 +28,7 @@ def validate_log(log, valid_schema):
             continue
         if log[key] not in valid_values:
             log[key] = None
-            resp = {'resp': 405, 'log': log,
+            resp = {'resp': 405, 'log': str(log),
                     'msg': f'log key:value {key}:{log[key]} not valid. Log. not submitted to database.'}
             return resp
 
@@ -237,7 +238,8 @@ class ServerWorker(threading.Thread):
             'utc_sent': msg.get('utc_sent', None),
             'utc_received': datetime.utcnow(),
             'hostname': f'{ident}',
-            'message': msg.get('message', None)
+            'message': msg.get('message', None),
+            'level': msg.get('level', None)
         }
         database = msg.get('database', 'DDOI').upper()
         dbconfig = config[f'{database}_DATA_BASE']
