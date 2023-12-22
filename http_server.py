@@ -20,15 +20,16 @@ def heartbeat():
 @app.route('/api/log/new_log', methods=["PUT"])
 def new_log():
     content = request.form
-    database = content.get('database', 'DDOI')
+    loggername = content.get('loggername', 'DDOI')
     log = {
         'utc_sent': content.get('utc_sent', None),
         'utc_received': datetime.utcnow(),
         'hostname': str(urlparse(request.base_url).hostname),
         'level': content.get('level', None),
+        'loggername': loggername,
         'message': content.get('message', None),
     }
-    dbconfig = config[f'{database}_DATA_BASE']
+    dbconfig = config[f'{loggername.upper()}_DATA_BASE']
     db_name = dbconfig.get('DB_NAME')
     db_client = get_mongodb(db_name)
     log_coll_name = dbconfig.get('LOG_COLL_NAME')
@@ -51,15 +52,15 @@ def get_logs():
     startDate = request.args.get('start_date', None, type=str)
     endDate = request.args.get('end_date', None, type=str)
     nLogs = request.args.get('n_logs', None, type=int)
+    loggername = request.args.get('loggername', 'DDOI', type=str)
     dateFormat = request.args.get('date_format', '%Y-%m-%d', type=str)
     
-    dbconfig = config[f'{database}_DATA_BASE']
+    dbconfig = config[f'{loggername.upper()}_DATA_BASE']
     db_name = dbconfig.get('DB_NAME')
     log_coll_name = dbconfig.get('LOG_COLL_NAME')
     log_schema = get_schema_keys(dbconfig.get('LOG_SCHEMA'))
 
     query_params = { key: request.args.get(key, None) for key in log_schema }
-    database = request.args.get('database', 'DDOI', type=str)
 
     find, sort = process_query(startDate, endDate, nLogs, dateFormat, **query_params)
     

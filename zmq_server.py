@@ -184,8 +184,8 @@ class ServerWorker(threading.Thread):
             'dateFormat': dateFormat
         }
 
-        database = msg.get('database', 'DDOI').upper()
-        dbconfig = config[f'{database}_DATA_BASE']
+        loggername = msg.get('loggername', 'DDOI')
+        dbconfig = config[f'{loggername.upper()}_DATA_BASE']
         log_schema = get_schema_keys(dbconfig.get('LOG_SCHEMA'))
         log_coll_name = dbconfig.get('LOG_COLL_NAME')
         db_name = dbconfig.get('DB_NAME')
@@ -234,15 +234,16 @@ class ServerWorker(threading.Thread):
             dict: message to be sent to requester 
         """
 
+        loggername = msg.get('loggername', 'DDOI')
         log = {
             'utc_sent': msg.get('utc_sent', None),
             'utc_received': datetime.utcnow(),
             'hostname': f'{ident}',
             'message': msg.get('message', None),
-            'level': msg.get('level', None)
+            'level': msg.get('level', None),
+            'loggername': loggername
         }
-        database = msg.get('database', 'DDOI').upper()
-        dbconfig = config[f'{database}_DATA_BASE']
+        dbconfig = config[f'{loggername.upper()}_DATA_BASE']
         log_schema = get_schema_keys(dbconfig.get('LOG_SCHEMA'))
         log_coll_name = dbconfig.get('LOG_COLL_NAME')
         db_name = dbconfig.get('DB_NAME')
