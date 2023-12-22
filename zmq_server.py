@@ -9,6 +9,14 @@ import json
 import os
 import pdb
 
+def get_schema_keys(log_schema):
+    keys = []
+    for schema in log_schema:
+        if isinstance(schema, list):
+            keys.append(schema[0])
+        else:
+            keys.append(schema)
+
 def validate_log(log, valid_schema):
     for schema in valid_schema :
         if isinstance(schema, str):
@@ -177,10 +185,14 @@ class ServerWorker(threading.Thread):
 
         database = msg.get('database', 'DDOI').upper()
         dbconfig = config[f'{database}_DATA_BASE']
-        log_schema = dbconfig.get('LOG_SCHEMA').replace(' ', '').split(',')
+        log_schema = get_schema_keys(dbconfig.get('LOG_SCHEMA'))
         log_coll_name = dbconfig.get('LOG_COLL_NAME')
         db_name = dbconfig.get('DB_NAME')
-        for key in log_schema:
+        for schema in log_schema:
+            if isinstance(schema, list):
+                key = schema[0]
+            else:
+                key = schema
             pqargs[key] = msg.get(key, None)
 
             
@@ -229,7 +241,7 @@ class ServerWorker(threading.Thread):
         }
         database = msg.get('database', 'DDOI').upper()
         dbconfig = config[f'{database}_DATA_BASE']
-        log_schema = dbconfig.get('LOG_SCHEMA')
+        log_schema = get_schema_keys(dbconfig.get('LOG_SCHEMA'))
         log_coll_name = dbconfig.get('LOG_COLL_NAME')
         db_name = dbconfig.get('DB_NAME')
 
@@ -237,8 +249,7 @@ class ServerWorker(threading.Thread):
             log[key] = msg.get(key, None)
 
         # sanitize log
-        base_log_schema = dbconfig.get('BASE_LOG_SCHEMA')
-        valid_schema = [ *base_log_schema, *log_schema ]
+        valid_schema = [ *dbconfig.get('BASE_LOG_SCHEMA'), *dbconfig.get('LOG_SCHEMA')]
         resp = validate_log(log, valid_schema)
         if resp:
             return resp
@@ -265,10 +276,10 @@ if __name__ == "__main__":
     with open(args.configPath) as f:
         config = yaml.safe_load(f)
     zmqconfig = config['ZMQ_SERVER']
-    url = zmqconfig.get('URL')
-    port = int(zmqconfig.get('PORT'))
+    url = zmqconfig['url']
+    port = zmqconfig['port']
 
-    nworkers = int(zmqconfig.get('N_WORKERS', 1))
+    nworkers = zmqconfig.get('N_WORKERS', 1)
 
     server = ServerTask(port, nworkers)
     server.start()

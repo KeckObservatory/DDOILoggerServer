@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from bson.json_util import dumps
 import eventlet
 from eventlet import wsgi
-from zmq_server import get_mongodb, process_query, get_default_config_loc
+from zmq_server import get_mongodb, get_schema_keys, process_query, get_default_config_loc, validate_log
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -31,9 +31,16 @@ def new_log():
     db_name = dbconfig.get('DB_NAME')
     db_client = get_mongodb(db_name)
     log_coll_name = dbconfig.get('LOG_COLL_NAME')
-    log_schema = dbconfig.get('LOG_SCHEMA').replace(' ', '').split(',')
+    log_schema = get_schema_keys(dbconfig.get('LOG_SCHEMA'))
     for key in log_schema:
         log[key] = content.get(key, None)
+
+
+    # sanitize log
+    valid_schema = [ *dbconfig.get('BASE_LOG_SCHEMA'), *dbconfig.get('LOG_SCHEMA')]
+    resp = validate_log(log, valid_schema)
+    if resp:
+        return resp, 405
     id = db_client[log_coll_name].insert_one(log)
     return "Log submitted", 201
 
@@ -48,7 +55,7 @@ def get_logs():
     dbconfig = config[f'{database}_DATA_BASE']
     db_name = dbconfig.get('DB_NAME')
     log_coll_name = dbconfig.get('LOG_COLL_NAME')
-    log_schema = dbconfig.get('LOG_SCHEMA').replace(' ', '').split(',')
+    log_schema = get_schema_keys(dbconfig.get('LOG_SCHEMA'))
 
     query_params = { key: request.args.get(key, None) for key in log_schema }
     database = request.args.get('database', 'DDOI', type=str)
