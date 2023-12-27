@@ -7,7 +7,6 @@ import sys
 import threading
 import json
 import os
-import pdb
 
 def get_schema_keys(log_schema):
     keys = []
@@ -177,14 +176,15 @@ class ServerWorker(threading.Thread):
         DATE_FORMAT = '%Y-%m-%d %H:%M:%S.%Z'
         dateFormat = msg.get('dateFormat', DATE_FORMAT)
 
+        loggername = msg.get('loggername').lower()
         pqargs = {
             'startDate': msg.get('startDate', None),
             'endDate': msg.get('endDate', None),
             'nLogs': nLogs,
-            'dateFormat': dateFormat
-        }
+            'dateFormat': dateFormat,
+            'loggername': loggername
+            }
 
-        loggername = msg.get('loggername', 'DDOI')
         dbconfig = config[f'{loggername.upper()}_DATA_BASE']
         log_schema = get_schema_keys(dbconfig.get('LOG_SCHEMA'))
         log_coll_name = dbconfig.get('LOG_COLL_NAME')
@@ -195,8 +195,6 @@ class ServerWorker(threading.Thread):
             else:
                 key = schema
             pqargs[key] = msg.get(key, None)
-
-            
 
         find, sort = process_query(**pqargs)
         try:
@@ -262,7 +260,7 @@ class ServerWorker(threading.Thread):
         try:
             id = db_client[log_coll_name].insert_one(log)
             resp = {'resp': 200,
-                    'msg': f'log submitted to database. id: {id.inserted_id}'}
+                    'msg': f'log submitted to database {db_name} coll {log_coll_name}. id: {id.inserted_id}'}
         except Exception as err:
             resp = {'resp': 400, 'log': log,
                     'msg': f'log not submitted to database. err: {err}'}
