@@ -280,7 +280,7 @@ if __name__ == "__main__":
     url = zmqconfig['url']
     port = zmqconfig['port']
 
-    nworkers = zmqconfig.get('N_WORKERS', 1)
+    nworkers = zmqconfig.get('n_workers', 1)
 
     server = ServerTask(port, nworkers)
     server.start()
