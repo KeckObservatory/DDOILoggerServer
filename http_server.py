@@ -88,6 +88,6 @@ if __name__ == "__main__":
     with open(args.configPath, 'r') as f:
         config = yaml.safe_load(f)
     flaskconfig = config['FLASK_SERVER']
-    url = flaskconfig.get('URL')
-    port = int(flaskconfig.get('PORT', None))
+    url = flaskconfig.get('url')
+    port = int(flaskconfig.get('port', None))
     wsgi.server(eventlet.listen((url, port)), app)
