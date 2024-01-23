@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import yaml 
 import argparse
 from pymongo import MongoClient, DESCENDING
@@ -34,20 +34,27 @@ def validate_log(log, valid_schema):
 def process_query(startDate=None, endDate=None, nLogs=None, dateFormat='%Y-%m-%d', **query_params):
     find = {}
     sort = []
-    if not startDate is None and not endDate is None:
+    minutes = query_params.get('minutes', None)
+    if startDate and endDate and not minutes:
         sd = datetime.strptime(startDate, dateFormat)
         ed = datetime.strptime(endDate, dateFormat)
         find['utc_received'] = {'$lte': ed, '$gte': sd}
+    elif minutes and not startDate:
+        find['utc_received'] = {'$gte': datetime.utcnow() - timedelta(minutes=minutes)}
     elif startDate:
         sd = datetime.strptime(startDate, dateFormat)
         find['utc_received'] = {'$gte': sd}
+        if minutes:
+            find['utc_received'] = {'$gte': sd, '$lte': sd + timedelta(minutes=minutes)}
     elif endDate:
         ed = datetime.strptime(endDate, dateFormat)
         find['utc_received'] = {'$lte': ed}
+        if minutes:
+            find['utc_received'] = {'$lte': ed, '$gte': ed - timedelta(minutes=minutes)}
     for key, val in query_params.items():
         if val:
             find[key] = val
-    if nLogs:
+    if nLogs or minutes:
         sort = [('utc_received', DESCENDING)]
     return find, sort
 
