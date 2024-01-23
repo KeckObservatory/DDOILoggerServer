@@ -52,7 +52,7 @@ def get_logs():
     startDate = request.args.get('start_date', None, type=str)
     minutes = request.args.get('minutes', None, type=int)
     endDate = request.args.get('end_date', None, type=str)
-    nLogs = request.args.get('n_logs', 500, type=int)
+    nLogs = request.args.get('n_logs', 1500, type=int)
     loggername = request.args.get('loggername', 'DDOI', type=str)
     dateFormat = request.args.get('date_format', '%Y-%m-%d', type=str)
     
