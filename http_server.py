@@ -14,7 +14,7 @@ app.config.from_object(__name__)
 
 @app.route('/heartbeat', methods=["GET"])
 def heartbeat():
-    return "OK", 200
+    return "OK"
 
 
 @app.route('/api/log/new_log', methods=["PUT"])
@@ -42,9 +42,9 @@ def new_log():
     valid_schema = [ *dbconfig.get('BASE_LOG_SCHEMA'), *dbconfig.get('LOG_SCHEMA')]
     resp = validate_log(log, valid_schema)
     if resp:
-        return resp, 405
+        return resp
     id = db_client[log_coll_name].insert_one(log)
-    return "Log submitted", 201
+    return "Log submitted"
 
 
 @app.route('/api/log/get_logs', methods=["GET"])
@@ -74,9 +74,9 @@ def get_logs():
     logs = [x for x in cursor]
     if len(logs) > 0:
         res = dumps(logs)
-        return res, 200
+        return res
     else:
-        return [], 200
+        return []
 
 
 if __name__ == "__main__":
