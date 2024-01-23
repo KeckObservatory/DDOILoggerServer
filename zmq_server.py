@@ -214,7 +214,7 @@ class ServerWorker(threading.Thread):
                 res = {"msg": logs, "resp": 200}
                 return res
             else:
-                res = {"msg": "No logs list found", "resp": 200}
+                res = {"msg": [], "resp": 200}
                 return res
         except Exception as err:
             res = {"msg": f"error: {err}", "resp": 400}

@@ -76,7 +76,7 @@ def get_logs():
         res = dumps(logs)
         return res, 200
     else:
-        return "No logs list found", 200
+        return [], 200
 
 
 if __name__ == "__main__":
