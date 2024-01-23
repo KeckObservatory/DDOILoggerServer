@@ -1,7 +1,7 @@
 import yaml
 import pdb
 import argparse
-from flask import Flask, request 
+from flask import Flask, request, jsonify
 from datetime import datetime
 from urllib.parse import urlparse
 from bson.json_util import dumps
@@ -14,7 +14,7 @@ app.config.from_object(__name__)
 
 @app.route('/heartbeat', methods=["GET"])
 def heartbeat():
-    return "OK"
+    return "OK", 200
 
 
 @app.route('/api/log/new_log', methods=["PUT"])
@@ -42,9 +42,9 @@ def new_log():
     valid_schema = [ *dbconfig.get('BASE_LOG_SCHEMA'), *dbconfig.get('LOG_SCHEMA')]
     resp = validate_log(log, valid_schema)
     if resp:
-        return resp
+        return resp, 405
     id = db_client[log_coll_name].insert_one(log)
-    return "Log submitted"
+    return "Log submitted", 201
 
 
 @app.route('/api/log/get_logs', methods=["GET"])
@@ -76,7 +76,7 @@ def get_logs():
         res = dumps(logs)
         return res
     else:
-        return []
+        return jsonify([]), 200
 
 
 if __name__ == "__main__":
