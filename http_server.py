@@ -50,6 +50,7 @@ def new_log():
 @app.route('/api/log/get_logs', methods=["GET"])
 def get_logs():
     startDate = request.args.get('start_date', None, type=str)
+    minutes = request.args.get('minutes', None, type=str)
     endDate = request.args.get('end_date', None, type=str)
     nLogs = request.args.get('n_logs', None, type=int)
     loggername = request.args.get('loggername', 'DDOI', type=str)
@@ -62,7 +63,7 @@ def get_logs():
 
     query_params = { key: request.args.get(key, None) for key in log_schema }
 
-    find, sort = process_query(startDate, endDate, nLogs, dateFormat, **query_params)
+    find, sort = process_query(startDate, endDate, nLogs, minutes, dateFormat, **query_params)
     
     db_client = get_mongodb(db_name)
 

@@ -31,15 +31,14 @@ def validate_log(log, valid_schema):
                     'msg': f'log key:value {key}:{log[key]} not valid. Log. not submitted to database.'}
             return resp
 
-def process_query(startDate=None, endDate=None, nLogs=None, dateFormat='%Y-%m-%d', **query_params):
+def process_query(startDate=None, endDate=None, nLogs=None, minutes=None, dateFormat='%Y-%m-%d', **query_params):
     find = {}
     sort = []
-    minutes = query_params.get('minutes', None)
     if startDate and endDate and not minutes:
         sd = datetime.strptime(startDate, dateFormat)
         ed = datetime.strptime(endDate, dateFormat)
         find['utc_received'] = {'$lte': ed, '$gte': sd}
-    elif minutes and not startDate:
+    elif minutes and not startDate and not endDate:
         find['utc_received'] = {'$gte': datetime.utcnow() - timedelta(minutes=minutes)}
     elif startDate:
         sd = datetime.strptime(startDate, dateFormat)
