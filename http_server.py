@@ -50,7 +50,7 @@ def new_log():
 @app.route('/api/log/get_logs', methods=["GET"])
 def get_logs():
     startDate = request.args.get('start_date', None, type=str)
-    minutes = request.args.get('minutes', None, type=str)
+    minutes = request.args.get('minutes', None, type=int)
     endDate = request.args.get('end_date', None, type=str)
     nLogs = request.args.get('n_logs', None, type=int)
     loggername = request.args.get('loggername', 'DDOI', type=str)
