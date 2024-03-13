@@ -43,6 +43,7 @@ DDOI_DATA_BASE:
     - author 
     - semid 
     - progid 
+    - server
 KOA_DATA_BASE:
   LOG_COLL_NAME: koa 
   DB_NAME: logs 
